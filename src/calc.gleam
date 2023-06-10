@@ -101,19 +101,21 @@ pub fn prec_comp(p, p1) {
     #(_, PrecNone) -> order.Gt
     #(PrecTerm, PrecFactor) -> order.Lt
     #(PrecFactor, PrecTerm) -> order.Gt
+    #(PrecGreatest, PrecGreatest) -> order.Eq
     #(PrecGreatest, _) -> order.Gt
+    #(_,PrecGreatest) -> order.Lt
     _ -> order.Eq
   }
 }
 
 pub fn compile(tokens: List(Token)) -> List(Op) {
   case expression(tokens, []) {
-    #([], ops) -> ops
+    #([], ops) -> ops //|> list.reverse
   }
 }
 
 pub fn expression(tokens: List(Token), ops: List(Op)) {
-  parse_precedence(PrecNone, tokens, ops)
+  parse_precedence(PrecTerm, tokens, ops)
 }
 
 pub fn parse_precedence(prec, tokens, ops) {
@@ -127,7 +129,9 @@ pub fn parse_precedence(prec, tokens, ops) {
             [] -> #([], ops1)
             [t1, ..] -> {
               case prec_comp(new_prec, prec) {
-                order.Gt -> #(ts1, ops1)
+                order.Gt -> { 
+                  io.debug("quitting")
+                  #(ts1, ops1)}
                 _ ->
                   case t1 {
                     BraceClose -> #(ts1, ops1)
@@ -154,8 +158,8 @@ pub fn number(tokens: List(Token), ops: List(Op)) {
 pub fn grouping(tokens: List(Token), ops: List(Op)) {
   case tokens {
     [BraceOpen, ..ts] -> {
-      let #([BraceClose, ..ts1], ops1) = expression(ts, [])
-      #(ts1, list.append(ops1, ops))
+      let #([BraceClose, ..ts1], ops1) = expression(ts, ops)
+      #(ts1, ops1)
     }
   }
 }
@@ -164,7 +168,7 @@ pub fn binary(tokens: List(Token), ops: List(Op)) {
   case tokens {
     [t, ..ts] -> {
       let #(_, _, prec) = get_prefix_infix_precedence(t)
-      let #(ts1, ops1) = parse_precedence(prec_inc(prec), ts, [])
+      let #(ts1, ops1) = parse_precedence(prec_inc(prec), ts, ops)
       let op = case t {
         Plus -> Add
         Minus -> Sub
@@ -174,7 +178,7 @@ pub fn binary(tokens: List(Token), ops: List(Op)) {
         _ -> Div
       }
 
-      #(ts1, list.append(list.append(ops1, ops), [op]))
+      #(ts1, list.append(ops1, [op]))
     }
   }
 }
@@ -183,8 +187,8 @@ pub fn unary(tokens: List(Token), ops: List(Op)) {
   io.debug("unary")
   case tokens {
     [Minus, ..ts] -> {
-      let #(ts1, ops1) = expression(ts, [])
-      #(ts1, list.append(ops1, [Neg, ..ops]))
+      let #(ts1, ops1) = parse_precedence(PrecGreatest,ts, ops)
+      #(ts1, list.append(ops1, [Neg]))
     }
   }
 }
@@ -219,6 +223,7 @@ pub type Op {
 }
 
 pub fn execute(ops: List(Op), stack: List(Int)) {
+  io.debug(ops)
   case #(ops, stack) {
     #([], _) -> stack
     #([Push(n), ..ops1], _) -> execute(ops1, [n, ..stack])

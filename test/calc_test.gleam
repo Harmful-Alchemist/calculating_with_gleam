@@ -1,8 +1,10 @@
 import gleeunit
 import gleeunit/should
-import calc.{ Number, PrecNone, get_prefix_infix_precedence, tokenize, Plus, execute, Add,Sub, Push,Minus,number,compile}
+import calc.{ Number, PrecNone, get_prefix_infix_precedence, tokenize, Plus, execute, Add,Sub, Push,Minus,number,compile,PrecTerm,PrecFactor,PrecGreatest, prec_comp}
 import gleam/option.{None,Some}
 import gleam/io
+import gleam/order
+import gleam/list
 
 pub fn main() {
   gleeunit.main()
@@ -27,6 +29,22 @@ pub fn exec_test() {
   |> should.equal([2])
 }
 
+pub fn precedence_test() {
+  prec_comp(PrecNone,PrecNone) |> should.equal(order.Eq)
+  [PrecTerm, PrecFactor,PrecGreatest]|> list.all(fn(p) {p prec_comp(p,PrecNone) == order.Gt}) |> should.be_true()
+
+  prec_comp(PrecTerm,PrecTerm) |> should.equal(order.Eq)
+  [PrecNone]|> list.all(fn(p) {p prec_comp(p,PrecTerm) == order.Lt}) |> should.be_true()
+  [PrecFactor,PrecGreatest]|> list.all(fn(p) {p prec_comp(p,PrecTerm) == order.Gt}) |> should.be_true()
+
+  prec_comp(PrecFactor,PrecFactor) |> should.equal(order.Eq)
+  [PrecNone, PrecTerm]|> list.all(fn(p) {p prec_comp(p,PrecFactor) == order.Lt}) |> should.be_true()
+  [PrecGreatest]|> list.all(fn(p) {p prec_comp(p,PrecFactor) == order.Gt}) |> should.be_true()
+
+    prec_comp(PrecGreatest,PrecGreatest) |> should.equal(order.Eq)
+  [PrecTerm, PrecFactor,PrecNone]|> list.all(fn(p) {p prec_comp(p,PrecGreatest) == order.Lt}) |> should.be_true()
+
+}
 
 pub fn simple_test(){
   io.debug("simple_test===============")
@@ -35,4 +53,12 @@ pub fn simple_test(){
   |> compile
   |> execute([])
   |> should.equal([-4])
+}
+pub fn simpler_test(){
+  io.debug("simple_test222222222222222===============")
+    "3*(4-2)+2"
+  |> tokenize
+  |> compile
+  |> execute([])
+  |> should.equal([8])
 }
