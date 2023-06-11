@@ -1,4 +1,3 @@
-import gleam/io
 import gleam/map
 import gleam/iterator
 import gleam/string
@@ -6,13 +5,6 @@ import gleam/set
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/order
-
-pub fn main() {
-  io.println("Hello from calc!")
-  // 1. tokenize
-  // 2. compile
-  // 3. execute
-}
 
 pub fn run(s) {
   // `gleam shell`
