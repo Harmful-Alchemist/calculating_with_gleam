@@ -1,24 +1,17 @@
 # calc
 
-[![Package Version](https://img.shields.io/hexpm/v/calc)](https://hex.pm/packages/calc)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/calc/)
-
-A Gleam project
+A quick Gleam weekend project that is a very basic calculator. The Pratt parsing is copied from [Crafting Interpreters](https://craftinginterpreters.com/compiling-expressions.html).
+The execution basis is from [Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html). Everything that's not so good is mine 😀.
 
 ## Quick start
 
 ```sh
-gleam run   # Run the project
 gleam test  # Run the tests
 gleam shell # Run an Erlang shell
 ```
 
-## Installation
+In the shell run such exiting commands as:
 
-If available on Hex this package can be added to your Gleam project:
-
-```sh
-gleam add calc
 ```
-
-and its documentation can be found at <https://hexdocs.pm/calc>.
+calc:run("1+1").
+```
