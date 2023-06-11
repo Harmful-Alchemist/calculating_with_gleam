@@ -17,7 +17,7 @@ pub fn run(s) {
 }
 
 pub fn hd(xs) {
-  let assert [x,.._] = xs
+  let assert [x, ..] = xs
   x
 }
 
@@ -118,7 +118,8 @@ pub fn prec_comp(p, p1) {
 pub fn compile(tokens: List(Token)) -> List(Op) {
   // io.debug("compile")
   let assert #([], ops) = expression(tokens, [])
-  ops |> list.reverse
+  ops
+  |> list.reverse
 }
 
 pub fn expression(tokens: List(Token), ops: List(Op)) {
@@ -130,7 +131,7 @@ pub fn parse_precedence(prec, tokens, ops) {
   // io.debug("parse_precedence")
   case tokens {
     [] -> #([], ops)
-    [t, .._] -> {
+    [t, ..] -> {
       // io.debug(t)
       // io.debug("ehm...... if we stop here we have no prefix fn for:")
       // io.debug(t)
@@ -152,18 +153,21 @@ pub fn parse_infixes(prec, tokens, ops) {
       // io.debug("and token")
       // io.debug(t)
       case get_prefix_infix_precedence(t) {
-      #(_, Some(infix_fn), prec1) -> case prec_comp(prec, prec1) {
-        order.Gt -> {
-          #(tokens, ops)
-        }
-        _ -> {
-          let #(ts2, ops2) = infix_fn(tokens, ops)
-          parse_infixes(prec, ts2, ops2)
-        }
+        #(_, Some(infix_fn), prec1) ->
+          case prec_comp(prec, prec1) {
+            order.Gt -> {
+              #(tokens, ops)
+            }
+            _ -> {
+              let #(ts2, ops2) = infix_fn(tokens, ops)
+              parse_infixes(prec, ts2, ops2)
+            }
+          }
+        _ -> #(tokens, ops)
       }
-      _ -> #(tokens,ops) //closing brace
-    }}
+    }
   }
+  //closing brace
 }
 
 pub fn number(tokens: List(Token), ops: List(Op)) {
