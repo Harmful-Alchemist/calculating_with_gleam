@@ -111,32 +111,24 @@ pub fn prec_comp(p, p1) {
 }
 
 pub fn compile(tokens: List(Token)) -> List(Op) {
-  io.debug("compile")
-  case expression(tokens, []) {
-    #([], ops) ->
-      ops
-      |> list.reverse
-    #(rem_tokens, ops) -> {
-      io.debug("lets not!")
-      io.debug(rem_tokens)
-      ops
-    }
-  }
+  // io.debug("compile")
+  let assert #([], ops) = expression(tokens, [])
+  ops |> list.reverse
 }
 
 pub fn expression(tokens: List(Token), ops: List(Op)) {
-  io.debug("expression")
+  // io.debug("expression")
   parse_precedence(PrecTerm, tokens, ops)
 }
 
 pub fn parse_precedence(prec, tokens, ops) {
-  io.debug("parse_precedence")
+  // io.debug("parse_precedence")
   case tokens {
     [] -> #([], ops)
-    [t, ..ts] -> {
-      io.debug(t)
-      io.debug("ehm...... if we stop here we have no prefix fn for:")
-      io.debug(t)
+    [t, .._] -> {
+      // io.debug(t)
+      // io.debug("ehm...... if we stop here we have no prefix fn for:")
+      // io.debug(t)
 
       let assert #(Some(prefix_fn), _, _) = get_prefix_infix_precedence(t)
       let #(ts1, ops1) = prefix_fn(tokens, ops)
@@ -147,11 +139,15 @@ pub fn parse_precedence(prec, tokens, ops) {
 }
 
 pub fn parse_infixes(prec, tokens, ops) {
+  // io.debug("parse_infixes with prio:")
+  // io.debug(prec)
   case tokens {
     [] -> #([], ops)
     [t, ..] -> {
-      let assert #(_, Some(infix_fn), prec1) = get_prefix_infix_precedence(t)
-      case prec_comp(prec, prec1) {
+      // io.debug("and token")
+      // io.debug(t)
+      case get_prefix_infix_precedence(t) {
+      #(_, Some(infix_fn), prec1) -> case prec_comp(prec, prec1) {
         order.Gt -> {
           #(tokens, ops)
         }
@@ -160,38 +156,39 @@ pub fn parse_infixes(prec, tokens, ops) {
           parse_infixes(prec, ts2, ops2)
         }
       }
-    }
+      _ -> #(tokens,ops) //closing brace
+    }}
   }
 }
 
 pub fn number(tokens: List(Token), ops: List(Op)) {
-  io.debug("number")
+  // io.debug("number")
   case tokens {
     [Number(n), ..ts] -> #(ts, [Push(n), ..ops])
   }
 }
 
 pub fn grouping(tokens: List(Token), ops: List(Op)) {
-  io.debug("grouping")
+  // io.debug("grouping")
   case tokens {
     [ParenOpen, ..ts] -> {
-      let #([ParenClose, ..ts1], ops1) = expression(ts, ops)
-      io.debug("end grouping")
+      let assert #([ParenClose, ..ts1], ops1) = expression(ts, ops)
+      // io.debug("end grouping")
       #(ts1, ops1)
     }
   }
 }
 
 pub fn binary(tokens: List(Token), ops: List(Op)) {
-  io.debug("binary")
+  // io.debug("binary")
   case tokens {
     [] -> #([], ops)
     [t, ..ts] -> {
       let #(_, _, prec) = get_prefix_infix_precedence(t)
-      io.debug("binary after precedence:")
-      io.debug(prec)
+      // io.debug("binary after precedence:")
+      // io.debug(prec)
       let #(ts1, ops1) = parse_precedence(prec_inc(prec), ts, ops)
-      io.debug("bin after looking")
+      // io.debug("bin after looking")
       let op = case t {
         Plus -> Add
         Minus -> Sub
@@ -207,7 +204,7 @@ pub fn binary(tokens: List(Token), ops: List(Op)) {
 }
 
 pub fn unary(tokens: List(Token), ops: List(Op)) {
-  io.debug("unary")
+  // io.debug("unary")
   case tokens {
     [Minus, ..ts] -> {
       let #(ts1, ops1) = parse_precedence(PrecGreatest, ts, ops)
@@ -246,8 +243,8 @@ pub type Op {
 }
 
 pub fn execute(ops: List(Op), stack: List(Int)) {
-  io.debug(ops)
-  io.debug(stack)
+  // io.debug(ops)
+  // io.debug(stack)
   case #(ops, stack) {
     #([], _) -> stack
     #([Push(n), ..ops1], _) -> execute(ops1, [n, ..stack])
