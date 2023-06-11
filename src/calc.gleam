@@ -14,6 +14,21 @@ pub fn main() {
   // 3. execute
 }
 
+pub fn run(s) {
+  // `gleam shell`
+  // `calc:run("1+1").`
+  s
+  |> tokenize
+  |> compile
+  |> execute([])
+  |> hd
+}
+
+pub fn hd(xs) {
+  let assert [x,.._] = xs
+  x
+}
+
 // Tokenize
 pub type Token {
   Number(Int)
@@ -24,8 +39,6 @@ pub type Token {
   ParenOpen
   ParenClose
 }
-
-//TODO I think I need an EOF token! Since now need more recursion! And have no way to keep going!
 
 pub fn tokenize(s: String) {
   let allowed =
