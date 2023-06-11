@@ -135,33 +135,33 @@ pub fn parse_precedence(prec, tokens, ops) {
     [] -> #([], ops)
     [t, ..ts] -> {
       io.debug(t)
-          io.debug("ehm...... if we stop here we have no prefix fn for:")
-          io.debug(t)
+      io.debug("ehm...... if we stop here we have no prefix fn for:")
+      io.debug(t)
 
-           let assert #(Some(prefix_fn), _, _) = get_prefix_infix_precedence(t) 
-           let #(ts1, ops1) = prefix_fn(tokens, ops)
+      let assert #(Some(prefix_fn), _, _) = get_prefix_infix_precedence(t)
+      let #(ts1, ops1) = prefix_fn(tokens, ops)
 
-           parse_infixes(prec, ts1,ops1)
-  }
-  }
-}
-
-pub fn parse_infixes(prec,tokens,ops) {
-  case tokens {
-    [] -> #([],ops)
-    [t,.._] -> {
-      let assert #(_, Some(infix_fn), prec1) = get_prefix_infix_precedence(t)
-      case prec_comp(prec, prec1) {
-        order.Gt -> {
-          #(tokens,ops)
-        }
-        _ -> {
-          let #(ts2,ops2) = infix_fn(tokens,ops)
-          parse_infixes(prec,ts2,ops2)
-        }
+      parse_infixes(prec, ts1, ops1)
     }
   }
 }
+
+pub fn parse_infixes(prec, tokens, ops) {
+  case tokens {
+    [] -> #([], ops)
+    [t, ..] -> {
+      let assert #(_, Some(infix_fn), prec1) = get_prefix_infix_precedence(t)
+      case prec_comp(prec, prec1) {
+        order.Gt -> {
+          #(tokens, ops)
+        }
+        _ -> {
+          let #(ts2, ops2) = infix_fn(tokens, ops)
+          parse_infixes(prec, ts2, ops2)
+        }
+      }
+    }
+  }
 }
 
 pub fn number(tokens: List(Token), ops: List(Op)) {
@@ -175,7 +175,7 @@ pub fn grouping(tokens: List(Token), ops: List(Op)) {
   io.debug("grouping")
   case tokens {
     [ParenOpen, ..ts] -> {
-      let #([ParenClose, ..ts1], ops1) = expression(ts, ops) 
+      let #([ParenClose, ..ts1], ops1) = expression(ts, ops)
       io.debug("end grouping")
       #(ts1, ops1)
     }
@@ -185,7 +185,7 @@ pub fn grouping(tokens: List(Token), ops: List(Op)) {
 pub fn binary(tokens: List(Token), ops: List(Op)) {
   io.debug("binary")
   case tokens {
-    [] -> #([],ops)
+    [] -> #([], ops)
     [t, ..ts] -> {
       let #(_, _, prec) = get_prefix_infix_precedence(t)
       io.debug("binary after precedence:")
