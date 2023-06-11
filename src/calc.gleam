@@ -21,9 +21,11 @@ pub type Token {
   Minus
   Star
   Slash
-  BraceOpen
-  BraceClose
+  ParenOpen
+  ParenClose
 }
+
+//TODO I think I need an EOF token! Since now need more recursion! And have no way to keep going!
 
 pub fn tokenize(s: String) {
   let allowed =
@@ -46,8 +48,8 @@ pub fn tokenize(s: String) {
       "-" -> Minus
       "*" -> Star
       "/" -> Slash
-      "(" -> BraceOpen
-      ")" -> BraceClose
+      "(" -> ParenOpen
+      ")" -> ParenClose
       "0" -> Number(0)
       "1" -> Number(1)
       "2" -> Number(2)
@@ -90,7 +92,7 @@ pub fn prec_inc(p) {
     PrecNone -> PrecTerm
     PrecTerm -> PrecFactor
     PrecFactor -> PrecGreatest
-    _ -> PrecGreatest
+    PrecGreatest -> PrecGreatest
   }
 }
 
@@ -103,72 +105,93 @@ pub fn prec_comp(p, p1) {
     #(PrecFactor, PrecTerm) -> order.Gt
     #(PrecGreatest, PrecGreatest) -> order.Eq
     #(PrecGreatest, _) -> order.Gt
-    #(_,PrecGreatest) -> order.Lt
+    #(_, PrecGreatest) -> order.Lt
     _ -> order.Eq
   }
 }
 
 pub fn compile(tokens: List(Token)) -> List(Op) {
+  io.debug("compile")
   case expression(tokens, []) {
-    #([], ops) -> ops //|> list.reverse
-  }
-}
-
-pub fn expression(tokens: List(Token), ops: List(Op)) {
-  parse_precedence(PrecTerm, tokens, ops)
-}
-
-pub fn parse_precedence(prec, tokens, ops) {
-  case tokens {
-    [] -> #([], ops)
-    [t, ..] -> {
-      case get_prefix_infix_precedence(t) {
-        #(Some(prefix_fn), _, new_prec) -> {
-          let #(ts1, ops1) = prefix_fn(tokens, ops)
-          case ts1 {
-            [] -> #([], ops1)
-            [t1, ..] -> {
-              case prec_comp(new_prec, prec) {
-                order.Gt -> { 
-                  io.debug("quitting")
-                  #(ts1, ops1)}
-                _ ->
-                  case t1 {
-                    BraceClose -> #(ts1, ops1)
-                    _ -> {
-                      let assert #(_, Some(infix_fn), _) = get_prefix_infix_precedence(t1)
-                      infix_fn(ts1, ops1)
-                    }
-                  }
-              }
-            }
-          }
-        }
-      }
+    #([], ops) ->
+      ops
+      |> list.reverse
+    #(rem_tokens, ops) -> {
+      io.debug("lets not!")
+      io.debug(rem_tokens)
+      ops
     }
   }
 }
 
+pub fn expression(tokens: List(Token), ops: List(Op)) {
+  io.debug("expression")
+  parse_precedence(PrecTerm, tokens, ops)
+}
+
+pub fn parse_precedence(prec, tokens, ops) {
+  io.debug("parse_precedence")
+  case tokens {
+    [] -> #([], ops)
+    [t, ..ts] -> {
+      io.debug(t)
+          io.debug("ehm...... if we stop here we have no prefix fn for:")
+          io.debug(t)
+
+           let assert #(Some(prefix_fn), _, _) = get_prefix_infix_precedence(t) 
+           let #(ts1, ops1) = prefix_fn(tokens, ops)
+
+           parse_infixes(prec, ts1,ops1)
+  }
+  }
+}
+
+pub fn parse_infixes(prec,tokens,ops) {
+  case tokens {
+    [] -> #([],ops)
+    [t,.._] -> {
+      let assert #(_, Some(infix_fn), prec1) = get_prefix_infix_precedence(t)
+      case prec_comp(prec, prec1) {
+        order.Gt -> {
+          #(tokens,ops)
+        }
+        _ -> {
+          let #(ts2,ops2) = infix_fn(tokens,ops)
+          parse_infixes(prec,ts2,ops2)
+        }
+    }
+  }
+}
+}
+
 pub fn number(tokens: List(Token), ops: List(Op)) {
+  io.debug("number")
   case tokens {
     [Number(n), ..ts] -> #(ts, [Push(n), ..ops])
   }
 }
 
 pub fn grouping(tokens: List(Token), ops: List(Op)) {
+  io.debug("grouping")
   case tokens {
-    [BraceOpen, ..ts] -> {
-      let #([BraceClose, ..ts1], ops1) = expression(ts, ops)
+    [ParenOpen, ..ts] -> {
+      let #([ParenClose, ..ts1], ops1) = expression(ts, ops) 
+      io.debug("end grouping")
       #(ts1, ops1)
     }
   }
 }
 
 pub fn binary(tokens: List(Token), ops: List(Op)) {
+  io.debug("binary")
   case tokens {
+    [] -> #([],ops)
     [t, ..ts] -> {
       let #(_, _, prec) = get_prefix_infix_precedence(t)
+      io.debug("binary after precedence:")
+      io.debug(prec)
       let #(ts1, ops1) = parse_precedence(prec_inc(prec), ts, ops)
+      io.debug("bin after looking")
       let op = case t {
         Plus -> Add
         Minus -> Sub
@@ -178,7 +201,7 @@ pub fn binary(tokens: List(Token), ops: List(Op)) {
         _ -> Div
       }
 
-      #(ts1, list.append(ops1, [op]))
+      #(ts1, [op, ..ops1])
     }
   }
 }
@@ -187,8 +210,8 @@ pub fn unary(tokens: List(Token), ops: List(Op)) {
   io.debug("unary")
   case tokens {
     [Minus, ..ts] -> {
-      let #(ts1, ops1) = parse_precedence(PrecGreatest,ts, ops)
-      #(ts1, list.append(ops1, [Neg]))
+      let #(ts1, ops1) = parse_precedence(PrecGreatest, ts, ops)
+      #(ts1, [Neg, ..ops1])
     }
   }
 }
@@ -202,8 +225,8 @@ pub fn get_prefix_infix_precedence(tt: Token) {
       #(Minus, #(Some(unary), Some(binary), PrecTerm)),
       #(Star, #(None, Some(binary), PrecFactor)),
       #(Slash, #(None, Some(binary), PrecFactor)),
-      #(BraceOpen, #(Some(grouping), None, PrecNone)),
-      #(BraceClose, #(None, None, PrecNone)),
+      #(ParenOpen, #(Some(grouping), None, PrecNone)),
+      #(ParenClose, #(None, None, PrecNone)),
     ])
 
   case map.get(rules, tt) {
@@ -224,13 +247,14 @@ pub type Op {
 
 pub fn execute(ops: List(Op), stack: List(Int)) {
   io.debug(ops)
+  io.debug(stack)
   case #(ops, stack) {
     #([], _) -> stack
     #([Push(n), ..ops1], _) -> execute(ops1, [n, ..stack])
     #([Neg, ..ops1], [n, ..stack1]) -> execute(ops1, [-n, ..stack1])
-    #([Add, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n1 + n2, ..stack1])
-    #([Sub, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n1 - n2, ..stack1])
-    #([Mul, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n1 * n2, ..stack1])
-    #([Div, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n1 / n2, ..stack1])
+    #([Add, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n2 + n1, ..stack1])
+    #([Sub, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n2 - n1, ..stack1])
+    #([Mul, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n2 * n1, ..stack1])
+    #([Div, ..ops1], [n1, n2, ..stack1]) -> execute(ops1, [n2 / n1, ..stack1])
   }
 }
