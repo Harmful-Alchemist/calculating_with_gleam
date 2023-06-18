@@ -21,7 +21,7 @@ pub fn main() {
 pub fn tokenizer_test() {
   "-123+1"
   |> tokenize
-  |> should.equal([Minus, Number(123), Plus, Number(1)])
+  |> should.equal([#(Minus,0), #(Number(123),1), #(Plus,4), #(Number(1),5)])
 }
 
 pub fn exec_test() {

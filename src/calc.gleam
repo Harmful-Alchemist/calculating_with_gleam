@@ -5,6 +5,7 @@ import gleam/set
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/order
+import gleam/int
 
 pub fn run(s) {
   // `gleam shell`
@@ -43,37 +44,38 @@ pub fn tokenize(s: String) {
   s
   |> string.to_graphemes
   |> iterator.from_list
+  |> iterator.index
   |> iterator.filter(fn(x) {
     allowed
-    |> set.contains(x)
+    |> set.contains(x.1)
   })
   |> iterator.map(fn(x) {
-    case x {
-      "+" -> Plus
-      "-" -> Minus
-      "*" -> Star
-      "/" -> Slash
-      "(" -> ParenOpen
-      ")" -> ParenClose
-      "0" -> Number(0)
-      "1" -> Number(1)
-      "2" -> Number(2)
-      "3" -> Number(3)
-      "4" -> Number(4)
-      "5" -> Number(5)
-      "6" -> Number(6)
-      "7" -> Number(7)
-      "8" -> Number(8)
-      "9" -> Number(9)
+    case x.1 {
+      "+" -> #(Plus, x.0)
+      "-" -> #(Minus,x.0)
+      "*" -> #(Star,x.0)
+      "/" -> #(Slash,x.0)
+      "(" -> #(ParenOpen,x.0)
+      ")" -> #(ParenClose,x.0)
+      "0" -> #(Number(0), x.0)
+      "1" -> #(Number(1),x.0)
+      "2" -> #(Number(2),x.0)
+      "3" -> #(Number(3),x.0)
+      "4" -> #(Number(4),x.0)
+      "5" -> #(Number(5),x.0)
+      "6" -> #(Number(6),x.0)
+      "7" -> #(Number(7),x.0)
+      "8" -> #(Number(8),x.0)
+      "9" -> #(Number(9),x.0)
     }
   })
   |> iterator.fold(
     from: [],
     with: fn(acc, element) {
       case element {
-        Number(n) ->
+        #(Number(n),_i) ->
           case acc {
-            [Number(n1), ..xs] -> [Number(n + 10 * n1), ..xs]
+            [#(Number(n1), i1), ..xs] -> [#(Number(n + 10 * n1), i1), ..xs]
             _ -> [element, ..acc]
           }
         op -> [op, ..acc]
@@ -115,29 +117,29 @@ pub fn prec_comp(p, p1) {
   }
 }
 
-pub fn compile(tokens: List(Token)) -> List(Op) {
+pub fn compile(tokens: List(#(Token,Int))) -> List(Op) {
   // io.debug("compile")
-  let assert #([], ops) = expression(tokens, [])
+  let assert Ok(#([], ops)) = expression(tokens, []) //TODO
   ops
   |> list.reverse
 }
 
-pub fn expression(tokens: List(Token), ops: List(Op)) {
+pub fn expression(tokens: List(#(Token,Int)), ops: List(Op)) -> Result(#(List(#(Token,Int)), List(Op)), error) {
   // io.debug("expression")
-  parse_precedence(PrecTerm, tokens, ops)
+  parse_precedence(PrecTerm, tokens, ops) 
 }
 
-pub fn parse_precedence(prec, tokens, ops) {
+pub fn parse_precedence(prec, tokens, ops) -> Result(#(List(#(Token,Int)), List(Op)), error) {
   // io.debug("parse_precedence")
   case tokens {
-    [] -> #([], ops)
-    [t, ..] -> {
+    // [] -> #([], ops)
+    [#(t,_), ..] -> {
       // io.debug(t)
       // io.debug("ehm...... if we stop here we have no prefix fn for:")
       // io.debug(t)
 
       let assert #(Some(prefix_fn), _, _) = get_prefix_infix_precedence(t)
-      let #(ts1, ops1) = prefix_fn(tokens, ops)
+      let assert Ok(#(ts1, ops1)) = prefix_fn(tokens, ops)
 
       parse_infixes(prec, ts1, ops1)
     }
@@ -148,55 +150,61 @@ pub fn parse_infixes(prec, tokens, ops) {
   // io.debug("parse_infixes with prio:")
   // io.debug(prec)
   case tokens {
-    [] -> #([], ops)
-    [t, ..] -> {
+    [] -> Ok(#([], ops)) //TODO check!
+    [#(t,_), ..] -> {
       // io.debug("and token")
       // io.debug(t)
       case get_prefix_infix_precedence(t) {
         #(_, Some(infix_fn), prec1) ->
           case prec_comp(prec, prec1) {
             order.Gt -> {
-              #(tokens, ops)
+              Ok(#(tokens, ops))
             }
             _ -> {
-              let #(ts2, ops2) = infix_fn(tokens, ops)
+              let assert Ok(#(ts2, ops2)) = infix_fn(tokens, ops)
               parse_infixes(prec, ts2, ops2)
             }
           }
-        _ -> #(tokens, ops)
+        _ -> Ok(#(tokens, ops))
       }
     }
   }
   //closing brace
 }
 
-pub fn number(tokens: List(Token), ops: List(Op)) {
+pub fn number(tokens: List(#(Token,Int)), ops: List(Op)) {
   // io.debug("number")
   case tokens {
-    [Number(n), ..ts] -> #(ts, [Push(n), ..ops])
+    [#(Number(n),_i), ..ts] -> Ok(#(ts, [Push(n), ..ops]))
+    _ -> Error("Expected a number.")
   }
 }
 
-pub fn grouping(tokens: List(Token), ops: List(Op)) {
+pub fn grouping(tokens: List(#(Token,Int)), ops: List(Op)) {
   // io.debug("grouping")
   case tokens {
-    [ParenOpen, ..ts] -> {
-      let assert #([ParenClose, ..ts1], ops1) = expression(ts, ops)
+    [#(ParenOpen,i), ..ts] -> {
+      case  expression(ts, ops) {
+       Ok(#([#(ParenClose,_), ..ts1], ops1)) -> Ok(#(ts1, ops1))
+       Error(e) -> Error(e)
+       _ -> Error("Brace at pos " |> string.append(int.to_string(i)) |> string.append(" is not closed."))
+      }
+
       // io.debug("end grouping")
-      #(ts1, ops1)
+      
     }
   }
 }
 
-pub fn binary(tokens: List(Token), ops: List(Op)) {
+pub fn binary(tokens: List(#(Token,Int)), ops: List(Op)) {
   // io.debug("binary")
   case tokens {
-    [] -> #([], ops)
-    [t, ..ts] -> {
+    // [] -> #([], ops) TODO check if needed
+    [#(t,_), ..ts] -> {
       let #(_, _, prec) = get_prefix_infix_precedence(t)
       // io.debug("binary after precedence:")
       // io.debug(prec)
-      let #(ts1, ops1) = parse_precedence(prec_inc(prec), ts, ops)
+      let assert Ok(#(ts1, ops1)) = parse_precedence(prec_inc(prec), ts, ops)
       // io.debug("bin after looking")
       let op = case t {
         Plus -> Add
@@ -207,17 +215,17 @@ pub fn binary(tokens: List(Token), ops: List(Op)) {
         _ -> Div
       }
 
-      #(ts1, [op, ..ops1])
+      Ok(#(ts1, [op, ..ops1]))
     }
   }
 }
 
-pub fn unary(tokens: List(Token), ops: List(Op)) {
+pub fn unary(tokens: List(#(Token,Int)), ops: List(Op)) {
   // io.debug("unary")
   case tokens {
-    [Minus, ..ts] -> {
-      let #(ts1, ops1) = parse_precedence(PrecGreatest, ts, ops)
-      #(ts1, [Neg, ..ops1])
+    [#(Minus,_), ..ts] -> {
+      let assert Ok(#(ts1, ops1)) = parse_precedence(PrecGreatest, ts, ops) //TODO prop error
+      Ok(#(ts1, [Neg, ..ops1]))
     }
   }
 }
@@ -233,7 +241,8 @@ pub fn get_prefix_infix_precedence(tt: Token) {
       #(Slash, #(None, Some(binary), PrecFactor)),
       #(ParenOpen, #(Some(grouping), None, PrecNone)),
       #(ParenClose, #(None, None, PrecNone)),
-    ])
+    ]
+    )
 
   case map.get(rules, tt) {
     Error(Nil) -> #(Some(number), None, PrecNone)
