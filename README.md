@@ -10,7 +10,7 @@ gleam test  # Run the tests
 gleam shell # Run an Erlang shell
 ```
 
-In the shell run such exiting commands as:
+In the shell run such exciting commands as:
 
 ```
 calc:run("1+1").
