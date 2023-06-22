@@ -160,7 +160,7 @@ pub fn parse_precedence(
           }
         _ -> {
           Error(
-            "Expected '-' of a number at pos: "
+            "Expected '-' or a number at pos: "
             |> string.append(int.to_string(i)),
           )
         }
