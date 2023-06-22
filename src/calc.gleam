@@ -241,7 +241,6 @@ pub fn binary(tokens: List(#(Token, Int)), ops: List(Op)) {
                 _ -> Div
               }
 
-              //Does not happen
               Ok(#(ts1, [op, ..ops1]))
             }
             _ ->
