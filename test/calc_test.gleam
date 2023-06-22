@@ -117,7 +117,7 @@ pub fn error2_test() {
   |> tokenize
   |> compile
   |> execute_res
-  |> should.equal(Error("Expected '-' of a number at pos: 0"))
+  |> should.equal(Error("Expected '-' or a number at pos: 0"))
 }
 
 pub fn error3_test() {
@@ -125,7 +125,7 @@ pub fn error3_test() {
   |> tokenize
   |> compile
   |> execute_res
-  |> should.equal(Error("Expected '-' of a number at pos: 1"))
+  |> should.equal(Error("Expected '-' or a number at pos: 1"))
 }
 
 pub fn error4_test() {
